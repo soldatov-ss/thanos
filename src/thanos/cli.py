@@ -116,8 +116,8 @@ def main(
     try:
         snap(directory, recursive, dry_run)
     except Exception as e:
-        print(f"❌ Error: {e}")
-        return 1
+        typer.echo(f"❌ Error: {e}", err=True)
+        raise typer.Exit(code=1) from e
 
     return 0
 
