@@ -7,6 +7,8 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch
 import thanos
+from thanos.cli import snap, main
+from thanos.utils import get_files
 
 
 @pytest.fixture
@@ -54,28 +56,28 @@ class TestGetFiles:
 
     def test_get_files_empty_directory(self, temp_dir):
         """Test getting files from an empty directory."""
-        files = thanos.get_files(str(temp_dir))
+        files = get_files(str(temp_dir))
         assert len(files) == 0
 
     def test_get_files_with_files(self, populated_dir):
         """Test getting files from a populated directory."""
-        files = thanos.get_files(str(populated_dir))
+        files = get_files(str(populated_dir))
         assert len(files) == 10
 
     def test_get_files_non_recursive(self, nested_dir):
         """Test that non-recursive mode only gets root files."""
-        files = thanos.get_files(str(nested_dir), recursive=False)
+        files = get_files(str(nested_dir), recursive=False)
         assert len(files) == 6  # Only root level files
 
     def test_get_files_recursive(self, nested_dir):
         """Test that recursive mode gets all files."""
-        files = thanos.get_files(str(nested_dir), recursive=True)
+        files = get_files(str(nested_dir), recursive=True)
         assert len(files) == 12  # 6 root + 4 subdir + 2 nested
 
     def test_get_files_nonexistent_directory(self):
         """Test that nonexistent directory raises FileNotFoundError."""
         with pytest.raises(FileNotFoundError):
-            thanos.get_files("/nonexistent/directory")
+            get_files("/nonexistent/directory")
 
     def test_get_files_not_a_directory(self, temp_dir):
         """Test that file path raises NotADirectoryError."""
@@ -83,11 +85,11 @@ class TestGetFiles:
         file_path.write_text("test")
 
         with pytest.raises(NotADirectoryError):
-            thanos.get_files(str(file_path))
+            get_files(str(file_path))
 
     def test_get_files_ignores_directories(self, nested_dir):
         """Test that directories themselves are not included."""
-        files = thanos.get_files(str(nested_dir), recursive=True)
+        files = get_files(str(nested_dir), recursive=True)
         # Verify all returned items are files, not directories
         assert all(f.is_file() for f in files)
 
@@ -97,7 +99,7 @@ class TestSnap:
 
     def test_snap_empty_directory(self, temp_dir, capsys):
         """Test snap on empty directory."""
-        thanos.snap(str(temp_dir))
+        snap(str(temp_dir))
         captured = capsys.readouterr()
         assert "No files found" in captured.out
 
@@ -107,7 +109,7 @@ class TestSnap:
         assert initial_count == 10
 
         with patch("builtins.input", return_value="snap"):
-            thanos.snap(str(populated_dir))
+            snap(str(populated_dir))
 
         remaining_count = len(list(populated_dir.iterdir()))
         assert remaining_count == 5  # Half of 10
@@ -119,7 +121,7 @@ class TestSnap:
             (temp_dir / f"file_{i}.txt").write_text(f"Content {i}")
 
         with patch("builtins.input", return_value="snap"):
-            thanos.snap(str(temp_dir))
+            snap(str(temp_dir))
 
         remaining_count = len(list(temp_dir.iterdir()))
         assert remaining_count == 6  # 11 // 2 = 5 deleted, 6 remain
@@ -129,7 +131,7 @@ class TestSnap:
         (temp_dir / "lonely.txt").write_text("alone")
 
         with patch("builtins.input", return_value="snap"):
-            thanos.snap(str(temp_dir))
+            snap(str(temp_dir))
 
         remaining_count = len(list(temp_dir.iterdir()))
         assert remaining_count == 1  # 1 // 2 = 0 deleted
@@ -138,7 +140,7 @@ class TestSnap:
         """Test that dry run doesn't delete files."""
         initial_count = len(list(populated_dir.iterdir()))
 
-        thanos.snap(str(populated_dir), dry_run=True)
+        snap(str(populated_dir), dry_run=True)
 
         remaining_count = len(list(populated_dir.iterdir()))
         assert remaining_count == initial_count  # No files deleted
@@ -152,7 +154,7 @@ class TestSnap:
         initial_count = len(list(populated_dir.iterdir()))
 
         with patch("builtins.input", return_value="no"):
-            thanos.snap(str(populated_dir))
+            snap(str(populated_dir))
 
         remaining_count = len(list(populated_dir.iterdir()))
         assert remaining_count == initial_count  # No files deleted
@@ -166,7 +168,7 @@ class TestSnap:
         initial_files = len([f for f in nested_dir.rglob("*") if f.is_file()])
 
         with patch("builtins.input", return_value="snap"):
-            thanos.snap(str(nested_dir), recursive=True)
+            snap(str(nested_dir), recursive=True)
 
         remaining_files = len([f for f in nested_dir.rglob("*") if f.is_file()])
         expected_remaining = initial_files - (initial_files // 2)
@@ -186,7 +188,7 @@ class TestSnap:
                 (trial_dir / f"file_{i}.txt").write_text(f"Content {i}")
 
             with patch("builtins.input", return_value="snap"):
-                thanos.snap(str(trial_dir))
+                snap(str(trial_dir))
 
             # Record which files survived
             survivors = {f.name for f in trial_dir.iterdir()}
@@ -203,7 +205,7 @@ class TestMain:
     def test_main_with_dry_run(self, populated_dir, capsys):
         """Test main function with dry-run argument."""
         with patch("sys.argv", ["thanos", str(populated_dir), "--dry-run"]):
-            result = thanos.main()
+            result = main()
 
         assert result == 0
         captured = capsys.readouterr()
@@ -212,14 +214,14 @@ class TestMain:
     def test_main_with_recursive(self, nested_dir):
         """Test main function with recursive argument."""
         with patch("sys.argv", ["thanos", str(nested_dir), "-r", "-d"]):
-            result = thanos.main()
+            result = main()
 
         assert result == 0
 
     def test_main_with_nonexistent_dir(self, capsys):
         """Test main function with nonexistent directory."""
         with patch("sys.argv", ["thanos", "/fake/directory"]):
-            result = thanos.main()
+            result = main()
 
         assert result == 1
         captured = capsys.readouterr()
@@ -237,7 +239,7 @@ class TestMain:
                 (temp_dir / f"file_{i}.txt").write_text(f"Content {i}")
 
             with patch("sys.argv", ["thanos", "--dry-run"]):
-                result = thanos.main()
+                result = main
 
             assert result == 0
             captured = capsys.readouterr()
@@ -264,7 +266,7 @@ class TestEdgeCases:
 
         with patch("builtins.input", return_value="snap"):
             with patch.object(Path, "unlink", mock_unlink):
-                thanos.snap(str(populated_dir))
+                snap(str(populated_dir))
 
         captured = capsys.readouterr()
         assert "Failed to eliminate" in captured.out or "snap is complete" in captured.out
@@ -275,7 +277,7 @@ class TestEdgeCases:
         (temp_dir / "file2.txt").write_text("two")
 
         with patch("builtins.input", return_value="snap"):
-            thanos.snap(str(temp_dir))
+            snap(str(temp_dir))
 
         remaining = len(list(temp_dir.iterdir()))
         assert remaining == 1  # 2 // 2 = 1 deleted, 1 remains
