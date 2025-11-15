@@ -28,19 +28,21 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Install Python ${{ matrix.python-version }} via uv
+      - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
-      - name: Sync dependencies (including optional test group)
-        run: uv sync --all-extras
+      - name: Install dependencies with test extras
+        run: uv sync --extra test
 
       - name: Lint with ruff
         run: |
           uv run ruff check --select=E9,F63,F7,F82
           uv run ruff check --exit-zero --statistics
 
-      - name: Install project (PEP 621)
-        run: uv sync
-
-      - name: Run tests
+      - name: Run tests with pytest
         run: uv run pytest
+
+      - name: Run tests with coverage (optional)
+        run: |
+          uv run coverage run -m pytest
+          uv run coverage report
