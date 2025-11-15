@@ -44,7 +44,7 @@ test = [
 [project.urls]
 homepage = "https://github.com/soldatov-ss/thanos"
 bugs = "https://github.com/soldatov-ss/thanos/issues"
-changelog = "https://github.com/soldatov-ss/thanos/blob/master/changelog.md"
+changelog = "https://github.com/soldatov-ss/thanos/blob/master/CHANGELOG.md"
 documentation = "https://github.com/soldatov-ss/thanos/blob/master/docs/usage.md"
 
 [project.scripts]
