@@ -26,28 +26,15 @@ A Python CLI tool that randomly eliminates half of the files in a directory with
 ### Using uv (recommended)
 
 ```bash
-uv pip install git+https://github.com/soldatov-ss/thanos.git
+uv add thanos
 ```
 
 ### Using pip
 
 ```bash
-pip install git+https://github.com/soldatov-ss/thanos.git
+pip install thanos
 ```
 
-### For Development
-
-```bash
-# Clone the repository
-git clone https://github.com/soldatov-ss/thanos.git
-cd thanos
-
-# Install with uv
-uv sync --extra test
-
-# Or with pip
-pip install -e ".[test]"
-```
 
 ## 🚀 Quick Start
 
@@ -100,7 +87,7 @@ thanos /tmp/test-files
 thanos ~/old-projects --recursive
 ```
 
-For detailed usage instructions, see [USAGE.md](USAGE.md).
+For detailed usage instructions, see [USAGE.md](docs/usage.md).
 
 
 ## 📝 License
