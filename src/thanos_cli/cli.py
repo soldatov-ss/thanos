@@ -100,6 +100,13 @@ def init(
         thanosignore_content = """# Thanos Ignore File
 # Patterns listed here will be protected from elimination
 
+# The Black Hole Prevention
+# (Large folders that usually absorb all damage if not ignored)
+node_modules/**
+venv/**
+.venv/**
+__pycache__/**
+
 # Important directories
 important/**
 backup/**
@@ -108,6 +115,12 @@ docs/**
 # Database files
 *.db
 *.sqlite
+
+# System & Config
+.env
+.git/**
+.vscode/**
+.idea/**
 
 # Important data files
 *-important.*
