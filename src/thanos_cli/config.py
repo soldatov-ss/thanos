@@ -47,6 +47,9 @@ def get_default_protected_patterns() -> set[str]:
         # IDEs (Debatable, but usually annoying to lose)
         ".vscode/**",
         ".idea/**",
+        # Database files
+        "*.db",
+        "*.sqlite",
     }
 
 
