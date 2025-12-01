@@ -35,6 +35,7 @@ keywords = ["cli", "files", "cleanup", "utility", "thanos"]
 
 [project.optional-dependencies]
 test = [
+    "pre-commit>=4.3.0",
     "coverage",
     "pytest",
     "ruff",
