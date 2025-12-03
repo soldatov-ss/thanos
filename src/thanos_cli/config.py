@@ -84,7 +84,7 @@ def load_thanosignore(directory: str) -> tuple[set[str], Optional[Path]]:
     patterns = set()
 
     if ignore_file:
-        with open(ignore_file, "r") as f:
+        with open(ignore_file) as f:
             for line in f:
                 line = line.strip()
                 # Skip empty lines and comments
@@ -102,7 +102,7 @@ def load_thanosrc(directory: str) -> tuple[dict, Optional[Path]]:
     config_file = find_config_file(directory, ".thanosrc.json")
 
     if config_file:
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             return json.load(f), config_file
 
     return {}, None

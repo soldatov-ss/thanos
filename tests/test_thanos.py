@@ -10,12 +10,12 @@ from unittest.mock import patch
 
 import pytest
 
-from thanos_cli.cli import init, snap_command
+from thanos_cli.cli import init
 from thanos_cli.config import get_default_protected_patterns, load_thanosignore, load_thanosrc
 from thanos_cli.protection import should_protect_file
 from thanos_cli.snap import snap
 from thanos_cli.utils import get_files
-from thanos_cli.weights import calculate_file_weight, _matches_age_range, _matches_size_range, weighted_random_sample
+from thanos_cli.weights import _matches_age_range, _matches_size_range, calculate_file_weight, weighted_random_sample
 
 
 @pytest.fixture
@@ -648,7 +648,7 @@ class TestWeightedSelection:
 
     def test_weighted_selection_bias(self, temp_dir):
         """Test that weighted selection respects probability weights."""
-        from thanos_cli.weights import calculate_file_weight, weighted_random_sample
+        from thanos_cli.weights import calculate_file_weight
 
         # Create files
         files = []
@@ -829,9 +829,7 @@ class TestWeightedSelection:
         os.utime(test_file, (mid_time, mid_time))
 
         weights_config = {
-            "by_extension": {
-                ".log": 0.9  # High elimination
-            },
+            "by_extension": {".log": 0.9},  # High elimination
             "by_age_days": {
                 "0-7": 0.2,
                 "7-30": 0.5,  # Matches

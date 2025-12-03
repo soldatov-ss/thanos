@@ -77,7 +77,7 @@ def snap_command(
         snap(directory, recursive, dry_run, seed, no_protect)
     except Exception as e:
         console.print(f"\n[bold red]❌ Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
 
 @app.command()

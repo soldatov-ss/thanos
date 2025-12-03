@@ -136,7 +136,7 @@ def snap(
         console.print(
             Panel(
                 "⚠️  [bold]This was a dry run. No files were harmed.[/bold]\n\n"
-                f"💡 [dim]{'Use --seed <number> to get reproducible results' if seed is None else f'Run with --seed {seed} to delete these exact files'}[/dim]",
+                f"💡 [dim]{'Use --seed <number> to get reproducible results' if seed is None else f'Run with --seed {seed} to delete these exact files'}[/dim]",  # noqa: E501
                 border_style="green",
             )
         )
