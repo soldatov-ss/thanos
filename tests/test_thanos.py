@@ -1,18 +1,21 @@
 #!/usr/bin/env python
 
 import json
+import os
 import shutil
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from thanos_cli.cli import init
+from thanos_cli.cli import init, snap_command
 from thanos_cli.config import get_default_protected_patterns, load_thanosignore, load_thanosrc
 from thanos_cli.protection import should_protect_file
 from thanos_cli.snap import snap
 from thanos_cli.utils import get_files
+from thanos_cli.weights import calculate_file_weight, _matches_age_range, _matches_size_range, weighted_random_sample
 
 
 @pytest.fixture
@@ -674,7 +677,6 @@ class TestWeightedSelection:
 
     def test_weighted_sample_respects_k(self, temp_dir):
         """Test that weighted_random_sample returns correct number of items."""
-        from thanos_cli.weights import weighted_random_sample
 
         files = []
         for i in range(10):
@@ -690,7 +692,6 @@ class TestWeightedSelection:
 
     def test_default_weight_neutral(self, temp_dir):
         """Test that files without specific weights get 0.5 (neutral)."""
-        from thanos_cli.weights import calculate_file_weight
 
         test_file = temp_dir / "file.xyz"
         test_file.write_text("content")
@@ -699,6 +700,242 @@ class TestWeightedSelection:
 
         weight = calculate_file_weight(test_file, weights_config)
         assert weight == 0.5  # Default neutral weight
+
+    def test_age_based_weights_recent_files(self, temp_dir):
+        """Test age-based weights for recent files."""
+
+        # Create a recent file
+        recent_file = temp_dir / "recent.txt"
+        recent_file.write_text("content")
+
+        weights_config = {
+            "by_age_days": {
+                "0-7": 0.2,  # Recent files protected
+                "7-30": 0.5,
+                "30+": 0.9,  # Old files eliminated
+            }
+        }
+
+        weight = calculate_file_weight(recent_file, weights_config)
+        assert weight == 0.2  # Should match 0-7 range
+
+    def test_age_based_weights_old_files(self, temp_dir):
+        """Test age-based weights for old files."""
+
+        # Create an old file by modifying its timestamp
+        old_file = temp_dir / "old.txt"
+        old_file.write_text("content")
+
+        # Set modification time to 60 days ago
+        old_time = time.time() - (60 * 86400)
+        os.utime(old_file, (old_time, old_time))
+
+        weights_config = {
+            "by_age_days": {
+                "0-7": 0.2,
+                "7-30": 0.5,
+                "30+": 0.9,  # Should match this
+            }
+        }
+
+        weight = calculate_file_weight(old_file, weights_config)
+        assert weight == 0.9  # Should match 30+ range
+
+    def test_age_based_weights_middle_range(self, temp_dir):
+        """Test age-based weights for files in middle age range."""
+
+        # Create a file 15 days old
+        mid_file = temp_dir / "mid.txt"
+        mid_file.write_text("content")
+
+        # Set modification time to 15 days ago
+        mid_time = time.time() - (15 * 86400)
+        os.utime(mid_file, (mid_time, mid_time))
+
+        weights_config = {
+            "by_age_days": {
+                "0-7": 0.2,
+                "7-30": 0.5,  # Should match this
+                "30+": 0.9,
+            }
+        }
+
+        weight = calculate_file_weight(mid_file, weights_config)
+        assert weight == 0.5  # Should match 7-30 range
+
+    def test_size_based_weights_small_files(self, temp_dir):
+        """Test size-based weights for small files."""
+
+        # Create a small file (< 1 MB)
+        small_file = temp_dir / "small.txt"
+        small_file.write_text("x" * 1024)  # 1 KB
+
+        weights_config = {
+            "by_size_mb": {
+                "0-1": 0.3,  # Small files protected
+                "1-10": 0.5,
+                "10+": 0.9,  # Large files eliminated
+            }
+        }
+
+        weight = calculate_file_weight(small_file, weights_config)
+        assert weight == 0.3  # Should match 0-1 MB range
+
+    def test_size_based_weights_large_files(self, temp_dir):
+        """Test size-based weights for large files."""
+
+        # Create a large file (> 10 MB)
+        large_file = temp_dir / "large.bin"
+        large_file.write_bytes(b"x" * (11 * 1024 * 1024))  # 11 MB
+
+        weights_config = {
+            "by_size_mb": {
+                "0-1": 0.3,
+                "1-10": 0.5,
+                "10+": 0.9,  # Should match this
+            }
+        }
+
+        weight = calculate_file_weight(large_file, weights_config)
+        assert weight == 0.9  # Should match 10+ MB range
+
+    def test_size_based_weights_medium_files(self, temp_dir):
+        """Test size-based weights for medium-sized files."""
+
+        # Create a medium file (5 MB)
+        medium_file = temp_dir / "medium.bin"
+        medium_file.write_bytes(b"x" * (5 * 1024 * 1024))  # 5 MB
+
+        weights_config = {
+            "by_size_mb": {
+                "0-1": 0.3,
+                "1-10": 0.5,  # Should match this
+                "10+": 0.9,
+            }
+        }
+
+        weight = calculate_file_weight(medium_file, weights_config)
+        assert weight == 0.5  # Should match 1-10 MB range
+
+    def test_combined_weights_averaging(self, temp_dir):
+        """Test that multiple weight types are averaged."""
+
+        # Create a file with known properties
+        test_file = temp_dir / "test.log"
+        test_file.write_bytes(b"x" * (5 * 1024 * 1024))  # 5 MB
+
+        # Set modification time to 15 days ago
+        mid_time = time.time() - (15 * 86400)
+        os.utime(test_file, (mid_time, mid_time))
+
+        weights_config = {
+            "by_extension": {
+                ".log": 0.9  # High elimination
+            },
+            "by_age_days": {
+                "0-7": 0.2,
+                "7-30": 0.5,  # Matches
+                "30+": 0.9,
+            },
+            "by_size_mb": {
+                "0-1": 0.3,
+                "1-10": 0.7,  # Matches
+                "10+": 0.9,
+            },
+        }
+
+        weight = calculate_file_weight(test_file, weights_config)
+        # Should average: (0.9 + 0.5 + 0.7) / 3 = 0.7
+        assert abs(weight - 0.7) < 0.01
+
+    def test_age_range_formats(self, temp_dir):
+        """Test different age range format syntaxes."""
+        # Test "30+" format
+        assert _matches_age_range(40, "30+")
+        assert not _matches_age_range(20, "30+")
+
+        # Test "30-" format (alternative)
+        assert _matches_age_range(40, "30-")
+        assert not _matches_age_range(20, "30-")
+
+        # Test "0-7" format
+        assert _matches_age_range(5, "0-7")
+        assert not _matches_age_range(10, "0-7")
+
+        # Test "7-30" format
+        assert _matches_age_range(15, "7-30")
+        assert not _matches_age_range(5, "7-30")
+        assert not _matches_age_range(35, "7-30")
+
+    def test_size_range_formats(self, temp_dir):
+        """Test different size range format syntaxes."""
+        # Test "10+" format
+        assert _matches_size_range(15, "10+")
+        assert not _matches_size_range(5, "10+")
+
+        # Test "10-" format (alternative)
+        assert _matches_size_range(15, "10-")
+        assert not _matches_size_range(5, "10-")
+
+        # Test "0-1" format
+        assert _matches_size_range(0.5, "0-1")
+        assert not _matches_size_range(1.5, "0-1")
+
+        # Test "1-10" format
+        assert _matches_size_range(5, "1-10")
+        assert not _matches_size_range(0.5, "1-10")
+        assert not _matches_size_range(15, "1-10")
+
+    def test_weight_with_missing_file_stats(self, temp_dir):
+        """Test that weight calculation handles missing file stats gracefully."""
+        # Create a file
+        test_file = temp_dir / "test.txt"
+        test_file.write_text("content")
+
+        weights_config = {"by_extension": {".txt": 0.8}, "by_age_days": {"0-7": 0.2, "30+": 0.9}}
+
+        # Mock stat() to raise OSError
+        original_stat = Path.stat
+
+        def mock_stat(self):
+            if "test.txt" in str(self):
+                raise OSError("Cannot access file")
+            return original_stat(self)
+
+        with patch.object(Path, "stat", mock_stat):
+            weight = calculate_file_weight(test_file, weights_config)
+            # Should only use extension weight since age fails
+            assert weight == 0.8
+
+    def test_weights_only_extension(self, temp_dir):
+        """Test weights with only extension specified."""
+        test_file = temp_dir / "test.log"
+        test_file.write_text("content")
+
+        weights_config = {"by_extension": {".log": 0.85}}
+
+        weight = calculate_file_weight(test_file, weights_config)
+        assert weight == 0.85
+
+    def test_weights_only_age(self, temp_dir):
+        """Test weights with only age specified."""
+        test_file = temp_dir / "test.txt"
+        test_file.write_text("content")
+
+        weights_config = {"by_age_days": {"0-7": 0.25, "7+": 0.75}}
+
+        weight = calculate_file_weight(test_file, weights_config)
+        assert weight == 0.25  # Recent file
+
+    def test_weights_only_size(self, temp_dir):
+        """Test weights with only size specified."""
+        test_file = temp_dir / "test.bin"
+        test_file.write_bytes(b"x" * (2 * 1024 * 1024))  # 2 MB
+
+        weights_config = {"by_size_mb": {"0-1": 0.2, "1-5": 0.6, "5+": 0.9}}
+
+        weight = calculate_file_weight(test_file, weights_config)
+        assert weight == 0.6  # 1-5 MB range
 
 
 class TestConfigDiscovery:
