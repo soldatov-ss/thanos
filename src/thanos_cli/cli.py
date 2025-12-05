@@ -58,6 +58,14 @@ def snap_command(
             help="Disable all protections (DANGEROUS!)",
         ),
     ] = False,
+    trash: Annotated[
+        bool,
+        typer.Option(
+            "--trash",
+            "-t",
+            help="Move files to trash instead of permanent deletion",
+        ),
+    ] = False,
 ):
     """
     🫰 Eliminate half of all files with a snap.
@@ -74,7 +82,7 @@ def snap_command(
       thanos snap -r --seed 42
     """
     try:
-        snap(directory, recursive, dry_run, seed, no_protect)
+        snap(directory, recursive, dry_run, seed, no_protect, trash)
     except Exception as e:
         console.print(f"\n[bold red]❌ Error:[/bold red] {e}")
         raise typer.Exit(1)  # noqa: B904

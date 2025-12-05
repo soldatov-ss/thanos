@@ -44,6 +44,9 @@ After reviewing the preview:
 # Snap current directory
 thanos snap
 
+# Safe snap: move eliminated files to trash
+thanos snap --trash
+
 # Snap with same seed to delete exact files from preview
 thanos snap --seed 42
 
@@ -67,6 +70,7 @@ thanos snap [DIRECTORY] [OPTIONS]
 
 **Options:**
 
+- `-t, --trash` - Move files to system trash instead of permanent deletion.
 - `-r, --recursive` - Include files in subdirectories
 - `-d, --dry-run` - Preview without deleting
 - `-s, --seed INTEGER` - Random seed for reproducibility
@@ -411,6 +415,9 @@ thanos snap
 
 # RISKY: Direct snap without preview
 thanos snap  # Don't do this without -d first!
+
+# Safer alternative: move files to trash instead of permanent deletion
+thanos snap --trash
 ```
 
 ### 🔒 Confirmation Required

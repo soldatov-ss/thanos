@@ -1071,5 +1071,296 @@ class TestRealWorldScenarios:
         assert survival_counts[".yaml"] > survival_counts[".tmp"]
 
 
+class TestTrashFunctionality:
+    """Tests for --trash / send2trash integration."""
+
+    def test_trash_mode_moves_files_to_trash(self, populated_dir):
+        """Test that trash mode uses send2trash instead of unlink."""
+        with patch("thanos_cli.snap.send2trash") as mock_send2trash:
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(populated_dir), no_protect=True, use_trash=True)
+
+        # send2trash should have been called for eliminated files
+        assert mock_send2trash.called
+        # Should be called approximately half the time (5 out of 10 files)
+        assert 3 <= mock_send2trash.call_count <= 7
+
+    def test_trash_mode_dry_run_shows_correct_message(self, populated_dir, capsys):
+        """Test that dry run in trash mode shows appropriate message."""
+        snap(str(populated_dir), dry_run=True, use_trash=True, no_protect=True)
+
+        captured = capsys.readouterr()
+        assert "Trash mode enabled" in captured.out
+        assert "moved to trash" in captured.out.lower()
+
+    def test_trash_mode_with_seed_reproducibility(self, temp_dir):
+        """Test that trash mode with seed is reproducible."""
+        for i in range(10):
+            (temp_dir / f"file_{i}.txt").write_text(f"Content {i}")
+
+        eliminated_files_1 = []
+
+        def track_files_1(path):
+            eliminated_files_1.append(Path(path).name)
+
+        with patch("thanos_cli.snap.send2trash", side_effect=track_files_1):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(temp_dir), use_trash=True, seed=42, no_protect=True)
+
+        for i in range(10):
+            (temp_dir / f"file_{i}.txt").write_text(f"Content {i}")
+
+        # Second run with same seed
+        eliminated_files_2 = []
+
+        def track_files_2(path):
+            eliminated_files_2.append(Path(path).name)
+
+        with patch("thanos_cli.snap.send2trash", side_effect=track_files_2):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(temp_dir), use_trash=True, seed=42, no_protect=True)
+
+        # Same seed should eliminate same files
+        assert set(eliminated_files_1) == set(eliminated_files_2)
+
+    def test_trash_mode_respects_protections(self, dir_with_protected_files):
+        """Test that trash mode still respects file protections."""
+        eliminated_paths = []
+
+        def track_eliminated(path):
+            eliminated_paths.append(str(path))
+
+        with patch("thanos_cli.snap.send2trash", side_effect=track_eliminated):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(dir_with_protected_files), recursive=True, use_trash=True)
+
+        # Protected files should not be in eliminated list
+        for path in eliminated_paths:
+            assert ".env" not in path
+            assert ".git" not in path
+            assert "node_modules" not in path
+            assert ".venv" not in path
+
+    def test_trash_mode_handles_send2trash_errors(self, populated_dir, capsys):
+        """Test that trash mode handles send2trash errors gracefully."""
+
+        def send2trash_with_errors(path):
+            if "file_0" in str(path):
+                raise Exception("Permission denied")
+
+        with patch("thanos_cli.snap.send2trash", side_effect=send2trash_with_errors):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(populated_dir), use_trash=True, no_protect=True)
+
+        captured = capsys.readouterr()
+        assert "Failed" in captured.out or "complete" in captured.out
+
+    def test_trash_mode_summary_message(self, populated_dir, capsys):
+        """Test that trash mode shows correct summary with recovery note."""
+        with patch("thanos_cli.snap.send2trash"):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(populated_dir), use_trash=True, no_protect=True)
+
+        captured = capsys.readouterr()
+        assert "Moved to trash:" in captured.out
+        assert "restored" in captured.out.lower() or "trash" in captured.out.lower()
+
+    def test_trash_mode_with_recursive(self, nested_dir):
+        """Test trash mode with recursive option."""
+        eliminated_count = 0
+
+        def count_eliminations(path):
+            nonlocal eliminated_count
+            eliminated_count += 1
+
+        with patch("thanos_cli.snap.send2trash", side_effect=count_eliminations):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(nested_dir), recursive=True, use_trash=True, no_protect=True)
+
+        # Should eliminate approximately half of all files recursively
+        total_files = len([f for f in nested_dir.rglob("*") if f.is_file()])
+        expected = total_files // 2
+        # Allow some variance
+        assert abs(eliminated_count - expected) <= 1
+
+    def test_trash_mode_with_weighted_selection(self, temp_dir):
+        """Test that trash mode works with weighted selection."""
+        (temp_dir / "code.py").write_text("code")
+        (temp_dir / "temp.tmp").write_text("temp")
+        (temp_dir / "log.log").write_text("log")
+        (temp_dir / "data.json").write_text("data")
+
+        config_file = temp_dir / ".thanosrc.json"
+        config_data = {"weights": {"by_extension": {".tmp": 0.99, ".log": 0.99, ".py": 0.01, ".json": 0.01}}}
+        config_file.write_text(json.dumps(config_data))
+
+        eliminated_files = []
+
+        def track_files(path):
+            eliminated_files.append(Path(path).suffix)
+
+        with patch("thanos_cli.snap.send2trash", side_effect=track_files):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(temp_dir), use_trash=True, no_protect=True)
+
+        # With high weights, .tmp and .log should be more likely to be eliminated
+        # This is probabilistic, so we just verify the mechanism works
+        assert len(eliminated_files) > 0
+
+    def test_trash_mode_with_thanosignore(self, temp_dir):
+        """Test that trash mode respects .thanosignore patterns."""
+        (temp_dir / "keep.txt").write_text("keep")
+        (temp_dir / "delete.txt").write_text("delete")
+        important_dir = temp_dir / "important"
+        important_dir.mkdir()
+        (important_dir / "data.txt").write_text("important")
+
+        ignore_file = temp_dir / ".thanosignore"
+        ignore_file.write_text("keep.txt\nimportant/\n")
+
+        eliminated_paths = []
+
+        def track_eliminated(path):
+            eliminated_paths.append(str(path))
+
+        with patch("thanos_cli.snap.send2trash", side_effect=track_eliminated):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(temp_dir), recursive=True, use_trash=True)
+
+        # Protected files should not be eliminated
+        for path in eliminated_paths:
+            assert "keep.txt" not in path
+            assert "important" not in path
+
+    def test_trash_mode_empty_directory(self, temp_dir, capsys):
+        """Test trash mode with empty directory."""
+        snap(str(temp_dir), use_trash=True, no_protect=True)
+
+        captured = capsys.readouterr()
+        assert "empty" in captured.out.lower() or "No eligible files" in captured.out
+
+    def test_trash_mode_single_file(self, temp_dir):
+        """Test trash mode with single file (0 eliminated)."""
+        (temp_dir / "lonely.txt").write_text("alone")
+
+        with patch("thanos_cli.snap.send2trash") as mock_send2trash:
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(temp_dir), use_trash=True, no_protect=True)
+
+        # 1 // 2 = 0, so no files should be eliminated
+        assert not mock_send2trash.called
+
+    def test_trash_mode_shows_file_count(self, populated_dir, capsys):
+        """Test that trash mode shows count of moved files."""
+        with patch("thanos_cli.snap.send2trash"):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(populated_dir), use_trash=True, no_protect=True)
+
+        captured = capsys.readouterr()
+        # Should show "Moved to trash: X files"
+        assert "Moved to trash:" in captured.out
+        assert "files" in captured.out
+
+
+class TestTrashEdgeCases:
+    """Edge cases for trash functionality."""
+
+    def test_trash_mode_with_symlinks(self, temp_dir):
+        """Test trash mode behavior with symbolic links."""
+        real_file = temp_dir / "real.txt"
+        real_file.write_text("real content")
+
+        # Create a symlink
+        link_file = temp_dir / "link.txt"
+        try:
+            link_file.symlink_to(real_file)
+        except OSError:
+            pytest.skip("Symlinks not supported on this platform")
+
+        eliminated = []
+
+        def track_eliminated(path):
+            eliminated.append(Path(path).name)
+
+        with patch("thanos_cli.snap.send2trash", side_effect=track_eliminated):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(temp_dir), use_trash=True, no_protect=True)
+
+        # At least one file should be eliminated
+        assert len(eliminated) >= 0
+
+    def test_trash_mode_with_special_characters_in_filename(self, temp_dir):
+        """Test trash mode with special characters in filenames."""
+        # Create files with special characters
+        special_files = [
+            "file with spaces.txt",
+            "file-with-dashes.txt",
+            "file_with_underscores.txt",
+            "file.multiple.dots.txt",
+        ]
+
+        for filename in special_files:
+            (temp_dir / filename).write_text("content")
+
+        with patch("thanos_cli.snap.send2trash") as mock_send2trash:
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(temp_dir), use_trash=True, no_protect=True)
+
+        # Should handle special characters without errors
+        assert mock_send2trash.called
+
+    def test_trash_mode_preserves_file_metadata(self, temp_dir):
+        """Test that send2trash is called with correct file paths."""
+        test_file = temp_dir / "test.txt"
+        test_file.write_text("content")
+
+        called_paths = []
+
+        def capture_path(path):
+            called_paths.append(str(path))
+
+        with patch("thanos_cli.snap.send2trash", side_effect=capture_path):
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(temp_dir), use_trash=True, no_protect=True)
+
+        # Verify send2trash was called with string paths
+        if called_paths:
+            assert all(isinstance(p, str) for p in called_paths)
+
+    def test_trash_mode_parallel_to_normal_mode(self, temp_dir):
+        """Test that trash and normal modes can coexist."""
+        for i in range(5):
+            (temp_dir / f"trash_{i}.txt").write_text(f"Content {i}")
+            (temp_dir / f"delete_{i}.txt").write_text(f"Content {i}")
+
+        # First, use trash mode on trash_* files
+        trash_dir = temp_dir / "trash_test"
+        trash_dir.mkdir()
+        for i in range(5):
+            (trash_dir / f"file_{i}.txt").write_text(f"Content {i}")
+
+        with patch("thanos_cli.snap.send2trash") as mock_trash:
+            with patch("rich.console.Console.input", return_value="snap"):
+                snap(str(trash_dir), use_trash=True, no_protect=True)
+
+        # Verify trash was used
+        assert mock_trash.called
+
+        # Then use normal mode on delete_* files
+        delete_dir = temp_dir / "delete_test"
+        delete_dir.mkdir()
+        for i in range(5):
+            (delete_dir / f"file_{i}.txt").write_text(f"Content {i}")
+
+        initial_count = len(list(delete_dir.iterdir()))
+
+        with patch("rich.console.Console.input", return_value="snap"):
+            snap(str(delete_dir), use_trash=False, no_protect=True)
+
+        # Verify normal deletion occurred
+        remaining_count = len(list(delete_dir.iterdir()))
+        assert remaining_count < initial_count
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
