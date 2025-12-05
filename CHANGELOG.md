@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] – 2025-12-XX
+
+### Added
+
+- **Trash Mode (`--trash` / `-t`)**: Added a safer alternative to permanent deletion.
+    - Files are now moved to the system's Trash/Recycle Bin when this flag is used.
+    - Updated dry-run output to reflect whether files will be "eliminated" or "moved to trash".
+
 ## [0.2.1] – 2025-11-XX
 
 ### Added
@@ -21,6 +29,7 @@ All notable changes to this project will be documented in this file.
 
 - **CLI Structure**: Main functionality moved to `thanos snap` subcommand **(Breaking Change!)**.
 - **Output**: Enhanced CLI output with "Balance Assessment" statistics and ASCII art.
+
 ---
 
 ## [0.1.1] – 2025-11-XX
@@ -50,6 +59,8 @@ All notable changes to this project will be documented in this file.
 - Basic project documentation
 
 ---
+[0.3.0]: https://github.com/soldatov-ss/thanos/releases/tag/v0.3.0
+
 [0.2.0]: https://github.com/soldatov-ss/thanos/releases/tag/v0.2.0
 
 [0.1.1]: https://github.com/soldatov-ss/thanos/releases/tag/v0.1.1

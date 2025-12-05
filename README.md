@@ -21,6 +21,7 @@ recovered. Use at your own risk!
 
 ## ✨ Features
 
+* 🗑️ **Trash Mode**: Optionally move files to the system trash/recycle bin instead of permanent deletion.
 * ⚖️ **Weighted Selection**: Configure probabilities based on file age, size, or extension.
 * 🛡️ **Smart Protections**: Automatically protects `.git`, `node_modules`, `venv`, and system files.
 * 🚫 **Custom Ignore**: Support for `.thanosignore` using gitignore syntax.
@@ -65,7 +66,11 @@ thanos snap --dry-run
 When you are ready to restore balance:
 
 ```bash
+# Permanent deletion (Standard Snap)
 thanos snap
+
+# Safer Snap (Move to Trash)
+thanos snap --trash
 ```
 
 ## ⚙️ Configuration
@@ -104,10 +109,11 @@ See `docs/configuration.md` for the full schema.
 The CLI structure:
 
 - `thanos init` — Generate configuration files.
-- `thanos snap [DIRECTORY]` — Main command to eliminate files.
+- `thanos snap [DIRECTORY] [OPTIONS]` — Main command to eliminate files.
 
 Options:
 
+- `-t, --trash` — Move files to system trash instead of permanent deletion.
 - `-r, --recursive` — Include subdirectories
 - `-d, --dry-run` — Preview without deleting
 - `--seed <INT>` — Set seed for reproducibility
@@ -122,7 +128,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🤔 FAQ
 
 **Q: Can I recover deleted files?**
-A: No, files are permanently deleted. Always use `--dry-run` first!
+A: If you use the --trash flag, **YES**, you can restore them from your system's Recycle Bin/Trash.
+If you run the standard command without that flag, files are **permanently deleted**.
 
 **Q: How are files selected?**
 A: Randomly, but you can bias the selection using weights in `.thanosrc.json`.
