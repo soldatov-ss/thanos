@@ -139,14 +139,14 @@ def snap(
                 console.print(f"   [green]✓[/green] {file}")
 
         console.print()
+        if seed is None:
+            seed_msg = "Use --seed <number> to get reproducible results"
+        else:
+            seed_msg = f"Run with --seed {seed} to delete these exact files"
+
         console.print(
             Panel(
-                "⚠️  [bold]This was a dry run. No files were harmed.[/bold]\n\n"
-                f"💡 [dim]{
-                    'Use --seed <number> to get reproducible results'
-                    if seed is None
-                    else f'Run with --seed {seed} to delete these exact files'
-                }[/dim]",
+                f"⚠️  [bold]This was a dry run. No files were harmed.[/bold]\n\n💡 [dim]{seed_msg}[/dim]",
                 border_style="green",
             )
         )
