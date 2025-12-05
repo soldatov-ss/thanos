@@ -6,6 +6,7 @@ from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from send2trash import send2trash
 
 from .config import get_default_protected_patterns, load_thanosignore, load_thanosrc
 from .protection import should_protect_file
@@ -21,6 +22,7 @@ def snap(
     dry_run: bool = False,
     seed: Optional[int] = None,
     no_protect: bool = False,
+    use_trash: bool = False,
 ):
     """Execute the snap operation."""
 
@@ -37,6 +39,9 @@ def snap(
     if seed is not None:
         random.seed(seed)
         console.print(f"🎲 [cyan]Using random seed:[/cyan] [bold]{seed}[/bold]")
+
+    if use_trash:
+        console.print("🗑️  [cyan]Trash mode enabled:[/cyan] Files will be moved to trash")
 
     # Load protection patterns
     protected_patterns = set()
@@ -115,8 +120,9 @@ def snap(
 
     # Dry run mode
     if dry_run:
+        action = "moved to trash" if use_trash else "eliminated"
         console.print(
-            Panel("[bold yellow]🔍 DRY RUN MODE[/bold yellow]\nThese files would be eliminated:", border_style="yellow")
+            Panel(f"[bold yellow]🔍 DRY RUN MODE[/bold yellow]\nThese files would be {action}:", border_style="yellow")
         )
         console.print()
 
@@ -136,14 +142,19 @@ def snap(
         console.print(
             Panel(
                 "⚠️  [bold]This was a dry run. No files were harmed.[/bold]\n\n"
-                f"💡 [dim]{'Use --seed <number> to get reproducible results' if seed is None else f'Run with --seed {seed} to delete these exact files'}[/dim]",  # noqa: E501
+                f"💡 [dim]{
+                    'Use --seed <number> to get reproducible results'
+                    if seed is None
+                    else f'Run with --seed {seed} to delete these exact files'
+                }[/dim]",
                 border_style="green",
             )
         )
         return
 
     # Show files to be eliminated
-    console.print(Panel("[bold red]📋 Files selected for elimination:[/bold red]", border_style="red"))
+    action = "moved to trash" if use_trash else "elimination"
+    console.print(Panel(f"[bold red]📋 Files selected for {action}:[/bold red]", border_style="red"))
     console.print()
 
     for file in eliminated[:20]:
@@ -153,13 +164,23 @@ def snap(
         console.print(f"   [dim]... and {len(eliminated) - 20} more files[/dim]")
 
     console.print()
-    console.print(
-        Panel(
-            "⚠️  [bold red]WARNING: This will permanently delete the files listed above![/bold red]\n"
-            "[yellow]There is no undo. Files will be gone forever.[/yellow]",
-            border_style="red",
+
+    if use_trash:
+        console.print(
+            Panel(
+                "⚠️  [bold yellow]WARNING: This will move files to trash/recycle bin![/bold yellow]\n"
+                "[cyan]Files can be restored from trash if needed.[/cyan]",
+                border_style="yellow",
+            )
         )
-    )
+    else:
+        console.print(
+            Panel(
+                "⚠️  [bold red]WARNING: This will permanently delete the files listed above![/bold red]\n"
+                "[yellow]There is no undo. Files will be gone forever.[/yellow]",
+                border_style="red",
+            )
+        )
     console.print()
 
     # Confirmation
@@ -170,32 +191,60 @@ def snap(
         console.print(Panel("[yellow]Snap cancelled.[/yellow]\nThe universe remains unchanged.", border_style="yellow"))
         return
 
-    # Execute the snap
-    console.print()
-    console.print("[bold yellow]💥 Snapping...[/bold yellow]")
-    console.print()
+    if use_trash:
+        console.print()
+        console.print("[bold yellow]🗑️  Moving to trash...[/bold yellow]")
+        console.print()
 
-    eliminated_count = 0
-    failed_count = 0
+        eliminated_count = 0
+        failed_count = 0
 
-    with console.status("[bold yellow]Eliminating files...[/bold yellow]"):
-        for file in eliminated:
-            try:
-                file.unlink()
-                eliminated_count += 1
-                console.print(f"   [green]✓[/green] Eliminated: [dim]{file}[/dim]")
-            except Exception as e:
-                failed_count += 1
-                console.print(f"   [red]❌[/red] Failed: [dim]{file}[/dim] - {e}")
+        with console.status("[bold yellow]Moving files to trash...[/bold yellow]"):
+            for file in eliminated:
+                try:
+                    send2trash(str(file))
+                    eliminated_count += 1
+                    console.print(f"   [green]✓[/green] Moved to trash: [dim]{file}[/dim]")
+                except Exception as e:
+                    failed_count += 1
+                    console.print(f"   [red]❌[/red] Failed: [dim]{file}[/dim] - {e}")
 
-    # Final summary
-    console.print()
-    console.print(
-        Panel.fit(
-            f"[bold green]✨ The snap is complete.[/bold green]\n\n"
-            f"[green]Eliminated:[/green] {eliminated_count} files\n"
-            f"[red]Failed:[/red] {failed_count} files\n\n"
-            f"[dim]Perfectly balanced, as all things should be.[/dim]",
-            border_style="green",
+        console.print()
+        console.print(
+            Panel.fit(
+                f"[bold green]✨ The snap is complete.[/bold green]\n\n"
+                f"[cyan]Moved to trash:[/cyan] {eliminated_count} files\n"
+                f"[red]Failed:[/red] {failed_count} files\n\n"
+                f"[dim]Files can be restored from your system's trash/recycle bin.\n"
+                f"Perfectly balanced, as all things should be.[/dim]",
+                border_style="green",
+            )
         )
-    )
+    else:
+        console.print()
+        console.print("[bold yellow]💥 Snapping...[/bold yellow]")
+        console.print()
+
+        eliminated_count = 0
+        failed_count = 0
+
+        with console.status("[bold yellow]Eliminating files...[/bold yellow]"):
+            for file in eliminated:
+                try:
+                    file.unlink()
+                    eliminated_count += 1
+                    console.print(f"   [green]✓[/green] Eliminated: [dim]{file}[/dim]")
+                except Exception as e:
+                    failed_count += 1
+                    console.print(f"   [red]❌[/red] Failed: [dim]{file}[/dim] - {e}")
+
+        console.print()
+        console.print(
+            Panel.fit(
+                f"[bold green]✨ The snap is complete.[/bold green]\n\n"
+                f"[green]Eliminated:[/green] {eliminated_count} files\n"
+                f"[red]Failed:[/red] {failed_count} files\n\n"
+                f"[dim]Perfectly balanced, as all things should be.[/dim]",
+                border_style="green",
+            )
+        )
