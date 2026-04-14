@@ -37,6 +37,14 @@ uv add thanos-cli
 uv pip install thanos-cli   # <- if you don't have pyproject.toml
 ```
 
+### Using pipx (recommended for CLI use)
+
+```bash
+pipx install thanos-cli
+```
+
+> Installs `thanos` as an isolated CLI tool available system-wide without polluting your global Python environment.
+
 ### Using pip
 
 ```bash
