@@ -23,6 +23,7 @@ def snap(
     seed: Optional[int] = None,
     no_protect: bool = False,
     use_trash: bool = False,
+    percent: int = 50,
 ):
     """Execute the snap operation."""
 
@@ -35,6 +36,9 @@ def snap(
         )
     )
     console.print()
+
+    if percent != 50:
+        console.print(f"🎯 [cyan]Custom elimination rate:[/cyan] [bold]{percent}%[/bold]")
 
     if seed is not None:
         random.seed(seed)
@@ -94,7 +98,18 @@ def snap(
         return
 
     # Calculate elimination count
-    files_to_eliminate = total_files // 2
+    files_to_eliminate = int(total_files * percent / 100)
+
+    if files_to_eliminate == 0:
+        console.print()
+        console.print(
+            Panel(
+                f"[yellow]0 files to eliminate at {percent}% of {total_files} eligible files.[/yellow]\n"
+                "Try a higher percentage or a directory with more files.",
+                border_style="yellow",
+            )
+        )
+        return
 
     # Select files for elimination
     if use_weights:

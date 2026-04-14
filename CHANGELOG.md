@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] – 2026-04-14
+
+### Added
+
+- **`--percent` / `-p` option**: Control what percentage of eligible files are eliminated (default: 50, range: 1–100).
+    - Replaces the hardcoded 50% with a configurable value.
+    - Example: `thanos snap --percent 30` eliminates 30% of files.
+
 ## [0.3.0] – 2025-12-XX
 
 ### Added
@@ -59,6 +67,7 @@ All notable changes to this project will be documented in this file.
 - Basic project documentation
 
 ---
+[0.4.0]: https://github.com/soldatov-ss/thanos/releases/tag/v0.4.0
 [0.3.0]: https://github.com/soldatov-ss/thanos/releases/tag/v0.3.0
 
 [0.2.0]: https://github.com/soldatov-ss/thanos/releases/tag/v0.2.0

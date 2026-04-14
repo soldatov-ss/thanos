@@ -124,6 +124,7 @@ Options:
 - `-t, --trash` — Move files to system trash instead of permanent deletion.
 - `-r, --recursive` — Include subdirectories
 - `-d, --dry-run` — Preview without deleting
+- `-p, --percent <INT>` — Percentage of files to eliminate (default: 50, range: 1–100)
 - `--seed <INT>` — Set seed for reproducibility
 - `--no-protect` — Disable protections (dangerous)
 

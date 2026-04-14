@@ -66,6 +66,16 @@ def snap_command(
             help="Move files to trash instead of permanent deletion",
         ),
     ] = False,
+    percent: Annotated[
+        int,
+        typer.Option(
+            "--percent",
+            "-p",
+            help="Percentage of files to eliminate (default: 50)",
+            min=1,
+            max=100,
+        ),
+    ] = 50,
 ):
     """
     🫰 Eliminate half of all files with a snap.
@@ -80,9 +90,12 @@ def snap_command(
 
       # Recursive with seed
       thanos snap -r --seed 42
+
+      # Eliminate 30% of files
+      thanos snap --percent 30
     """
     try:
-        snap(directory, recursive, dry_run, seed, no_protect, trash)
+        snap(directory, recursive, dry_run, seed, no_protect, trash, percent)
     except Exception as e:
         console.print(f"\n[bold red]❌ Error:[/bold red] {e}")
         raise typer.Exit(1)  # noqa: B904

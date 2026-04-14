@@ -1,6 +1,6 @@
 [project]
 name = "thanos-cli"
-version = "0.3.0"
+version = "0.4.0"
 description = "🫰 Thanos - Eliminate half of all files with a snap. Perfectly balanced, as all things should be."
 readme = "README.md"
 authors = [
