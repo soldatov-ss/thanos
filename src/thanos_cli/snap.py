@@ -100,6 +100,17 @@ def snap(
     # Calculate elimination count
     files_to_eliminate = int(total_files * percent / 100)
 
+    if files_to_eliminate == 0:
+        console.print()
+        console.print(
+            Panel(
+                f"[yellow]0 files to eliminate at {percent}% of {total_files} eligible files.[/yellow]\n"
+                "Try a higher percentage or a directory with more files.",
+                border_style="yellow",
+            )
+        )
+        return
+
     # Select files for elimination
     if use_weights:
         weights = [calculate_file_weight(f, weights_config) for f in files]
