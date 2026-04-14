@@ -48,6 +48,10 @@ VERSION := `grep -m1 '^version' pyproject.toml | sed -E 's/version = "(.*)"/\1/'
 version:
     @echo "Current version is {{VERSION}}"
 
+# Publish the project to PyPI
+publish token:
+    uv publish --token {{token}}
+
 # Tag the current version in git and put to github
 tag:
     echo "Tagging version v{{VERSION}}"
