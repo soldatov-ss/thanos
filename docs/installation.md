@@ -8,6 +8,12 @@ To install thanos, run this command in your terminal:
 uv add thanos-cli
 ```
 
+Or with `pipx` (recommended for CLI tools — installs in an isolated environment):
+
+```sh
+pipx install thanos-cli
+```
+
 Or if you prefer to use `pip`:
 
 ```sh

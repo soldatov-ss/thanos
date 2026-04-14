@@ -73,6 +73,7 @@ thanos snap [DIRECTORY] [OPTIONS]
 - `-t, --trash` - Move files to system trash instead of permanent deletion.
 - `-r, --recursive` - Include files in subdirectories
 - `-d, --dry-run` - Preview without deleting
+- `-p, --percent INTEGER` - Percentage of files to eliminate (default: 50, range: 1–100)
 - `-s, --seed INTEGER` - Random seed for reproducibility
 - `--no-protect` - Disable all file protections (DANGEROUS!)
 
@@ -90,6 +91,12 @@ thanos snap -r --seed 42
 
 # Preview without protections (chaos mode)
 thanos snap -d --no-protect
+
+# Eliminate only 30% of files
+thanos snap --percent 30
+
+# Eliminate 80% and move to trash
+thanos snap --percent 80 --trash
 ```
 
 ### `thanos init` - Initialize Configuration

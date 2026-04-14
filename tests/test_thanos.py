@@ -316,6 +316,41 @@ class TestSnap:
         remaining_count = len(list(temp_dir.iterdir()))
         assert remaining_count == 6  # 11 // 2 = 5 deleted, 6 remain
 
+    def test_snap_custom_percent(self, temp_dir):
+        """Test snap with custom percent eliminates the correct number of files."""
+        for i in range(10):
+            (temp_dir / f"file_{i}.txt").write_text(f"Content {i}")
+
+        with patch("rich.console.Console.input", return_value="snap"):
+            snap(str(temp_dir), no_protect=True, percent=30)
+
+        remaining_count = len(list(temp_dir.iterdir()))
+        assert remaining_count == 7  # int(10 * 0.30) = 3 deleted, 7 remain
+
+    def test_snap_percent_100(self, temp_dir):
+        """Test snap with 100% eliminates all files."""
+        for i in range(6):
+            (temp_dir / f"file_{i}.txt").write_text(f"Content {i}")
+
+        with patch("rich.console.Console.input", return_value="snap"):
+            snap(str(temp_dir), no_protect=True, percent=100)
+
+        remaining_count = len(list(temp_dir.iterdir()))
+        assert remaining_count == 0
+
+    def test_snap_percent_dry_run_shows_correct_count(self, temp_dir, capsys):
+        """Test that dry run with custom percent shows correct elimination count and deletes nothing."""
+        for i in range(20):
+            (temp_dir / f"file_{i}.txt").write_text(f"Content {i}")
+
+        snap(str(temp_dir), dry_run=True, no_protect=True, percent=25)
+
+        remaining_count = len(list(temp_dir.iterdir()))
+        assert remaining_count == 20  # no files deleted in dry run
+
+        captured = capsys.readouterr()
+        assert "5" in captured.out  # int(20 * 0.25) = 5 files to eliminate
+
     def test_snap_single_file(self, temp_dir):
         """Test snap with single file."""
         (temp_dir / "lonely.txt").write_text("alone")
