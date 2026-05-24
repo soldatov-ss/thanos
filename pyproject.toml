@@ -28,7 +28,7 @@ classifiers = [
 license = { text = "MIT" }
 dependencies = [
     "pathspec>=0.12.1",
-    "send2trash>=1.8.3",
+    "send2trash>=2.1.0",
     "typer",
 ]
 requires-python = ">= 3.9"
