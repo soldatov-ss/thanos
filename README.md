@@ -6,8 +6,7 @@
   <img src="docs/glove.png" width="120" alt="A glove"/>
 </p>
 
-A Python CLI tool that randomly eliminates half of the files in a directory with a snap. Inspired by Marvel's Thanos and
-his infamous snap.
+A Python CLI tool that randomly eliminates a configurable percentage of files in a directory with a snap (default: 50%). Inspired by Marvel's Thanos and his infamous snap.
 
 [![Test Python application](https://github.com/soldatov-ss/thanos/actions/workflows/test.yml/badge.svg)](https://github.com/soldatov-ss/thanos/actions/workflows/test.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -147,7 +146,7 @@ A: Randomly, but you can bias the selection using weights in `.thanosrc.json`.
 A: `.git`, `.svn`, `node_modules`, `venv`, `__pycache__`, `.env`, and more.
 
 **Q: What if I have an odd number of files?**
-A: If you have 11 files, 5 will be deleted (11 // 2 = 5) and 6 will remain.
+A: The count is calculated as `int(total * percent / 100)`, so with 11 files at the default 50%, 5 will be deleted and 6 will remain. Use `--percent` to adjust.
 
 ## 🙏 Acknowledgments
 

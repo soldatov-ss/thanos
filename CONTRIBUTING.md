@@ -49,12 +49,11 @@ Ready to contribute? Here's how to set up `thanos` for local development.
    git clone git@github.com:your_name_here/thanos.git
    ```
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development:
+3. Install dependencies (requires [uv](https://docs.astral.sh/uv/)):
 
    ```sh
-   mkvirtualenv thanos
    cd thanos/
-   python setup.py develop
+   uv sync --extra test
    ```
 
 4. Create a branch for local development:
@@ -65,16 +64,13 @@ Ready to contribute? Here's how to set up `thanos` for local development.
 
    Now you can make your changes locally.
 
-5. When you're done making changes, check that your changes pass flake8 and the tests, including testing other Python versions with tox:
+5. When you're done making changes, check that your changes pass linting and tests:
 
    ```sh
-   make lint
-   make test
-   # Or
-   make test-all
+   uv run ruff check
+   uv run ruff format --check
+   uv run pytest
    ```
-
-   To get flake8 and tox, just pip install them into your virtualenv.
 
 6. Commit your changes and push your branch to GitHub:
 
@@ -92,25 +88,28 @@ Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
 2. If the pull request adds functionality, the docs should be updated. Put your new functionality into a function with a docstring, and add the feature to the list in README.md.
-3. The pull request should work for Python 3.12 and 3.13. Tests run in GitHub Actions on every pull request to the main branch, make sure that the tests pass for all supported Python versions.
+3. The pull request should work for Python 3.9+. Tests run in GitHub Actions on every pull request to the main branch, make sure that the tests pass for all supported Python versions.
 
 ## Tips
 
 To run a subset of tests:
 
 ```sh
-pytest tests.test_thanos
+uv run pytest tests/test_snap.py
 ```
 
 ## Deploying
 
-A reminder for the maintainers on how to deploy. Make sure all your changes are committed (including an entry in HISTORY.md). Then run:
+A reminder for the maintainers on how to deploy. Make sure all your changes are committed (including an entry in `CHANGELOG.md`). Then:
 
-```sh
-bump2version patch # possible: major / minor / patch
-git push
-git push --tags
-```
+1. Bump the version in `pyproject.toml`.
+2. Tag the release and push:
+
+   ```sh
+   git tag v<version>
+   git push
+   git push --tags
+   ```
 
 You can set up a [GitHub Actions workflow](https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python#publishing-to-pypi) to automatically deploy your package to PyPI when you push a new tag.
 

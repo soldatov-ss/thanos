@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] – 2026-05-24
+
+### Fixed
+
+- Directory with exactly 1 eligible file now correctly reports "0 files to eliminate at X% of 1 eligible files" instead of the misleading "No eligible files found"
+
+### Changed
+
+- Random seed is now managed via a `random.Random(seed)` instance constructed once in `snap()` and threaded through the pipeline; the global `random` module state is no longer mutated as a side effect of printing the header
+- Weight-calculation helpers are now pure functions returning `float | None` instead of mutating a shared list, making each weight type independently composable
+- `_get_elimination_count` is now a pure function; early-exit messages are handled by the caller
+
+---
+
 ## [0.4.0] – 2026-04-14
 
 ### Added
@@ -67,10 +81,11 @@ All notable changes to this project will be documented in this file.
 - Basic project documentation
 
 ---
+[0.4.1]: https://github.com/soldatov-ss/thanos/releases/tag/v0.4.1
 [0.4.0]: https://github.com/soldatov-ss/thanos/releases/tag/v0.4.0
 [0.3.0]: https://github.com/soldatov-ss/thanos/releases/tag/v0.3.0
 
-[0.2.0]: https://github.com/soldatov-ss/thanos/releases/tag/v0.2.0
+[0.2.1]: https://github.com/soldatov-ss/thanos/releases/tag/v0.2.1
 
 [0.1.1]: https://github.com/soldatov-ss/thanos/releases/tag/v0.1.1
 

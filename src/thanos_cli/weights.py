@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import random
 import time
 from pathlib import Path
@@ -19,49 +21,63 @@ def calculate_file_weight(file: Path, weights_config: dict) -> float:
     if not weights_config:
         return 0.5
 
-    weights = []
+    file_stats = _safe_file_stats(file)
+    matched = [
+        w
+        for w in [
+            _extension_weight(file, weights_config.get("by_extension", {})),
+            _age_weight(file_stats, weights_config.get("by_age_days", {})),
+            _size_weight(file_stats, weights_config.get("by_size_mb", {})),
+        ]
+        if w is not None
+    ]
+    return sum(matched) / len(matched) if matched else 0.5
 
-    # Extension-based weights
-    ext_weights = weights_config.get("by_extension", {})
+
+def _safe_file_stats(file: Path) -> tuple[float, int] | None:
+    """Return (mtime, size) for a file when available."""
+    try:
+        stat_result = file.stat()
+    except OSError:
+        return None
+    return stat_result.st_mtime, stat_result.st_size
+
+
+def _extension_weight(file: Path, ext_weights: dict) -> float | None:
+    """Return extension-based weight when configured, else None."""
     if ext_weights and file.suffix in ext_weights:
-        weights.append(ext_weights[file.suffix])
+        return ext_weights[file.suffix]
+    return None
 
-    # Age-based weights
-    age_weights = weights_config.get("by_age_days", {})
-    if age_weights:
-        try:
-            # Get file modification time
-            mtime = file.stat().st_mtime
-            age_days = (time.time() - mtime) / 86400  # Convert seconds to days
 
-            # Find matching age range
-            for age_range, weight in age_weights.items():
-                if _matches_age_range(age_days, age_range):
-                    weights.append(weight)
-                    break
-        except (OSError, ValueError):
-            # If we can't get file stats, skip age-based weighting
-            pass
+def _age_weight(file_stats: tuple[float, int] | None, age_weights: dict) -> float | None:
+    """Return age-based weight when the file matches a configured range, else None."""
+    if not age_weights or file_stats is None:
+        return None
+    try:
+        age_days = (time.time() - file_stats[0]) / 86400
+        return _first_matching_weight(age_days, age_weights, _matches_age_range)
+    except ValueError:
+        return None
 
-    # Size-based weights
-    size_weights = weights_config.get("by_size_mb", {})
-    if size_weights:
-        try:
-            # Get file size in MB
-            size_bytes = file.stat().st_size
-            size_mb = size_bytes / (1024 * 1024)
 
-            # Find matching size range
-            for size_range, weight in size_weights.items():
-                if _matches_size_range(size_mb, size_range):
-                    weights.append(weight)
-                    break
-        except (OSError, ValueError):
-            # If we can't get file stats, skip size-based weighting
-            pass
+def _size_weight(file_stats: tuple[float, int] | None, size_weights: dict) -> float | None:
+    """Return size-based weight when the file matches a configured range, else None."""
+    if not size_weights or file_stats is None:
+        return None
+    try:
+        size_mb = file_stats[1] / (1024 * 1024)
+        return _first_matching_weight(size_mb, size_weights, _matches_size_range)
+    except ValueError:
+        return None
 
-    # Return average of all applicable weights, or default if none match
-    return sum(weights) / len(weights) if weights else 0.5
+
+def _first_matching_weight(value: float, configured_weights: dict, matcher) -> float | None:
+    """Return the first configured weight whose range matches value, else None."""
+    for range_name, weight in configured_weights.items():
+        if matcher(value, range_name):
+            return weight
+    return None
 
 
 def _matches_age_range(age_days: float, age_range: str) -> bool:
@@ -77,7 +93,7 @@ def _matches_age_range(age_days: float, age_range: str) -> bool:
     age_range = age_range.strip()
 
     # Handle "30+" or "30-" format (30 or more days)
-    if age_range.endswith("+") or age_range.endswith("-"):
+    if age_range.endswith(("+", "-")):
         min_age = float(age_range[:-1])
         return age_days >= min_age
 
@@ -108,7 +124,7 @@ def _matches_size_range(size_mb: float, size_range: str) -> bool:
     size_range = size_range.strip()
 
     # Handle "10+" or "10-" format (10 MB or larger)
-    if size_range.endswith("+") or size_range.endswith("-"):
+    if size_range.endswith(("+", "-")):
         min_size = float(size_range[:-1])
         return size_mb >= min_size
 
@@ -126,8 +142,12 @@ def _matches_size_range(size_mb: float, size_range: str) -> bool:
     return False
 
 
-def weighted_random_sample(files: list[Path], weights: list[float], k: int) -> list[Path]:
+def weighted_random_sample(
+    files: list[Path], weights: list[float], k: int, rng: random.Random | None = None
+) -> list[Path]:
     """Select k files using weighted random sampling."""
+    if rng is None:
+        rng = random.Random()
     selected = []
     remaining_files = list(files)
     remaining_weights = list(weights)
@@ -140,9 +160,9 @@ def weighted_random_sample(files: list[Path], weights: list[float], k: int) -> l
         total = sum(remaining_weights)
         if total == 0:
             # Fallback to uniform if all weights are 0
-            idx = random.randint(0, len(remaining_files) - 1)
+            idx = rng.randint(0, len(remaining_files) - 1)
         else:
-            r = random.uniform(0, total)
+            r = rng.uniform(0, total)
             cumulative = 0
             idx = 0
             for i, w in enumerate(remaining_weights):
