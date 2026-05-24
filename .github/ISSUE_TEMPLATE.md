@@ -1,3 +1,9 @@
+---
+name: Bug report
+about: Report a bug or unexpected behavior
+labels: bug
+---
+
 * thanos version:
 * Python version:
 * Operating System:
