@@ -58,7 +58,7 @@ thanos snap test_env/ -r
 
 ### `thanos snap` - Eliminate Files
 
-The main command that eliminates half of all files.
+The main command that eliminates a configurable percentage of files (default: 50%).
 
 ```bash
 thanos snap [DIRECTORY] [OPTIONS]
@@ -209,26 +209,18 @@ When multiple weight types apply to a file, they are averaged.
 
 Weight files by their extension:
 
-```yaml
+```json
 {
     "weights": {
         "by_extension": {
             ".log": 0.9,
-            // Logs - likely eliminate
             ".tmp": 0.95,
-            // Temp files - very likely eliminate
             ".cache": 0.95,
-            // Cache files - very likely eliminate
             ".bak": 0.8,
-            // Backups - likely eliminate
             ".py": 0.3,
-            // Python code - likely keep
             ".js": 0.3,
-            // JavaScript code - likely keep
             ".db": 0.1,
-            // Databases - likely keep
             ".json": 0.2
-            // JSON files - likely keep
         }
     }
 }
@@ -238,18 +230,14 @@ Weight files by their extension:
 
 Weight files by how old they are:
 
-```yaml
+```json
 {
     "weights": {
         "by_age_days": {
             "0-7": 0.3,
-            // Last week - keep recent
             "7-30": 0.5,
-            // Last month - neutral
             "30-90": 0.7,
-            // 1-3 months - likely eliminate
             "90+": 0.9
-            // 3+ months - very likely eliminate
         }
     }
 }
@@ -488,36 +476,6 @@ Base path: /home/user/project/test_env
 ╰────────────────────────────────────────────╯
 ```
 
-### Debug Output
-
-```
-╭─────────────────────╮
-│ 🔍 DEBUG MODE       │
-│ Analyzing file...   │
-╰─────────────────────╯
-
-Default patterns: 25
-Patterns from /home/user/.thanosignore: 10
-
-Active patterns:
-  • .git/
-  • .venv/
-  • node_modules/
-  • *.pyc
-  • important/
-  ...
-
-Protected: 45 files
-Unprotected: 55 files
-
-╭─────────────────────────────────────────────╮
-│ Unprotected Files (eligible for snap)      │
-╰─────────────────────────────────────────────╯
-  ○ test.log
-  ○ cache.tmp
-  ...
-```
-
 ## Troubleshooting
 
 ### "No eligible files found"
@@ -527,9 +485,6 @@ All files are protected by default protections or `.thanosignore`.
 **Solution:**
 
 ```bash
-# Check what's protected
-thanos debug -p
-
 # Use --no-protect if intentional
 thanos snap --no-protect -d
 ```
@@ -539,9 +494,6 @@ thanos snap --no-protect -d
 Check pattern syntax and file location:
 
 ```bash
-# Debug to see if patterns match
-thanos debug -r
-
 # Verify .thanosignore location (should be in project root)
 find . -name ".thanosignore"
 
@@ -567,11 +519,10 @@ sudo thanos snap /protected/path  # Use with extreme caution!
 
 1. **Always initialize first**: `thanos init`
 2. **Always dry run first**: `thanos snap -d`
-3. **Use debug to verify protections**: `thanos debug`
-4. **Use seeds for reproducibility**: `--seed 42`
-5. **Start with small, safe directories**: Test on `/tmp` first
-6. **Backup important data**: Better safe than sorry
-7. **Use `.thanosignore` liberally**: Protect anything important
-8. **Test weight configurations**: Use dry run to verify behavior
-9. **Place `.thanosignore` at project root**: It's searched up 5 levels
-10. **Combine multiple weight types**: Extension + age + size for best control
+3. **Use seeds for reproducibility**: `--seed 42`
+4. **Start with small, safe directories**: Test on `/tmp` first
+5. **Backup important data**: Better safe than sorry
+6. **Use `.thanosignore` liberally**: Protect anything important
+7. **Test weight configurations**: Use dry run to verify behavior
+8. **Place `.thanosignore` at project root**: It's searched up 5 levels
+9. **Combine multiple weight types**: Extension + age + size for best control

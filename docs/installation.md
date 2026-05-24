@@ -27,7 +27,7 @@ The source files for thanos can be downloaded from the [Github repo](https://git
 You can either clone the public repository:
 
 ```sh
-git clone git://github.com/soldatov-ss/thanos
+git clone https://github.com/soldatov-ss/thanos.git
 ```
 
 Or download the [tarball](https://github.com/soldatov-ss/thanos/tarball/master):
